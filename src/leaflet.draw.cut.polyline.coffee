@@ -7,10 +7,13 @@ turfRewind = require '@turf/rewind'
 turfinside = require '@turf/inside'
 turfKinks = require '@turf/kinks'
 turfMeta = require '@turf/meta'
+turfPolygonize = require '@turf/polygonize'
+turfDifference = require('@turf/difference')
 # turfBooleanPointOnLine = require '@turf/boolean-point-on-line'
 turfNearestPointOnLine = require '@turf/nearest-point-on-line'
 turfLineIntersect = require '@turf/line-intersect'
-turfTruncate = require '@turf/truncate'
+turfLineSplit = require('@turf/line-split').default
+turfTruncate = require('@turf/truncate').default
 turfGetCoords = require('@turf/invariant').getCoords
 require 'leaflet-geometryutil'
 
@@ -406,6 +409,58 @@ class L.Cut.Polyline extends L.Handler
       @_activeLayer.cutting._poly.addLatLng(@_activeLayer.cutting._mouseMarker._latlng)
 
     @_stopCutDrawing()
+
+  _slice: (poly, splitter) ->
+
+    splitterCoords = turfGetCoords(splitter)
+    splitter = turf.lineString(splitterCoords)
+
+    polygons = @_polygonSlice(poly, splitter)
+      
+    polygons
+
+
+  _innerLineStrings: (poly) ->
+    results = []
+    coords = turfGetCoords poly
+    coords.slice(1, coords.length).forEach (coord) ->
+      results.push turf.lineString(coord)
+
+    turf.featureCollection(results)
+
+  _polygonSlice: (poly, splitter) ->
+    coords = turfGetCoords(poly)
+    outerRing = turf.lineString(coords[0])
+    innerRings = @_innerLineStrings(poly)
+
+    outerLineStrings = []
+
+    # split outers
+    turfMeta.featureEach turfLineSplit(outerRing, splitter), (line) ->
+      outerLineStrings.push line
+
+    # split splitter
+    turfMeta.featureEach turfLineSplit(splitter, poly), (line) ->
+      outerLineStrings.push line
+
+    outerLineStrings = turfTruncate(turf.featureCollection(outerLineStrings), precision: 3)
+
+    polygons = turfPolygonize.default(outerLineStrings)
+
+    if innerRings.features.length
+      newPolygons = []
+
+      turfMeta.featureEach polygons, (polygon) =>
+        turfMeta.featureEach innerRings, (innerRing) =>
+          innerPolygon = turfPolygonize.default(innerRing)
+          if innerPolygon.features.length == 1
+            polygon = turfDifference(polygon, innerPolygon.features[0])
+
+        newPolygons.push polygon
+
+      polygons = turf.featureCollection(newPolygons)
+
+    polygons
 
   _cut: (layer, polyline) ->
 
