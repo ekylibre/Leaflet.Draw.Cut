@@ -64,8 +64,9 @@ class L.Cut.Polyline extends L.Handler
 
     @_map.on 'zoomend moveend', @refreshAvailableLayers, @
 
-    @_map.on 'mousemove', @_selectLayer, @
-    @_map.on 'mousemove', @_cutMode, @
+    #@_map.on 'mousemove', @_selectLayer, @
+    @_map.on 'click', @_selectLayer, @
+    #@_map.on 'mousemove', @_cutMode, @
 
     super
     # @_map.on L.Cutting.Polyline.Event.UNSELECT, @_cancelCutDrawing, @
@@ -228,8 +229,8 @@ class L.Cut.Polyline extends L.Handler
         return
 
     return if found
-    if @_activeLayer && !@_activeLayer.glue
-      @_unselectLayer @_activeLayer
+    #if @_activeLayer && !@_activeLayer.glue
+      #@_unselectLayer @_activeLayer
 
   _unselectLayer: (e) ->
     layer = e.layer or e.target or e
@@ -300,10 +301,12 @@ class L.Cut.Polyline extends L.Handler
 
       @_activeLayer.cutting.enable()
 
+      @_map.on L.Draw.Event.DRAWVERTEX, @_finishDrawing, @
+
     # firstPoint, snapped
-    if !@_startPoint
-      @_activeLayer.cutting._mouseMarker.on 'move', @glueMarker, @
-      @_activeLayer.cutting._mouseMarker.on 'snap', @_glue_on_enabled, @
+    #if !@_startPoint
+      #@_activeLayer.cutting._mouseMarker.on 'move', @glueMarker, @
+      #@_activeLayer.cutting._mouseMarker.on 'snap', @_glue_on_enabled, @
 
   glueMarker: (e) =>
     marker = e.target || @_activeLayer.cutting._mouseMarker
@@ -396,6 +399,10 @@ class L.Cut.Polyline extends L.Handler
   _finishDrawing: (e) ->
     markerCount = @_activeLayer.cutting._markers.length
     marker = @_activeLayer.cutting._markers[markerCount - 1]
+    console.log markerCount
+    return unless markerCount == 3
+
+    
 
     if L.Browser.touch
       lastMarker = @_activeLayer.cutting._markers.pop()
@@ -410,15 +417,25 @@ class L.Cut.Polyline extends L.Handler
 
     @_stopCutDrawing()
 
-  _slice: (poly, splitter) ->
+  _slice: (polygon, polyline) ->
 
-    splitterCoords = turfGetCoords(splitter)
-    splitter = turf.lineString(splitterCoords)
+    poly = polygon.toTurfFeature()
+    splitter = polyline.toTurfFeature()
 
-    polygons = @_polygonSlice(poly, splitter)
+    splitter = turfTruncate(splitter, precision: 6)
+
+    turfPolygonsCollection = @_polygonSlice(poly, splitter)
+
+    featureGroup = new L.FeatureGroup()
+
+    turfMeta.featureEach turfPolygonsCollection, (turfPolygon) ->
+      polygon = new L.polygon []
+      #polygon = new L.polygon [], fillColor: '#FFC107', fillOpacity: 0.9, opacity: 1, weight: 1, color: 'black'
+      polygon.fromTurfFeature turfPolygon
+      featureGroup.addLayer polygon
+
+    featureGroup
       
-    polygons
-
 
   _innerLineStrings: (poly) ->
     results = []
@@ -443,7 +460,7 @@ class L.Cut.Polyline extends L.Handler
     turfMeta.featureEach turfLineSplit(splitter, poly), (line) ->
       outerLineStrings.push line
 
-    outerLineStrings = turfTruncate(turf.featureCollection(outerLineStrings), precision: 3)
+    outerLineStrings = turfTruncate(turf.featureCollection(outerLineStrings), precision: 6)
 
     polygons = turfPolygonize.default(outerLineStrings)
 
@@ -587,18 +604,24 @@ class L.Cut.Polyline extends L.Handler
     drawnPolyline = @_activeLayer.cutting._poly
 
     try
-      [polygon1, polygon2, splitter] = @_cut @_activeLayer, drawnPolyline
+      #[polygon1, polygon2, splitter] = @_cut @_activeLayer, drawnPolyline
+      layerGroup = @_slice @_activeLayer, drawnPolyline
+
+      console.log 'layerGroup', layerGroup.toGeoJSON()
 
       @_activeLayer.cutting.disable()
 
       @_map.removeLayer @_activeLayer
 
-      @_activeLayer._polys = new L.LayerGroup()
+      @_activeLayer._polys = layerGroup
       @_activeLayer._polys.addTo @_map
-      @_activeLayer._polys.addLayer polygon1
-      @_activeLayer._polys.addLayer polygon2
 
-      @_map.fire L.Cutting.Polyline.Event.CREATED, layers: [polygon1, polygon2]
+      #@_activeLayer._polys = new L.LayerGroup()
+      #@_activeLayer._polys.addTo @_map
+      #@_activeLayer._polys.addLayer polygon1
+      #@_activeLayer._polys.addLayer polygon2
+
+      #@_map.fire L.Cutting.Polyline.Event.CREATED, layers: [polygon1, polygon2]
 
       @_activeLayer.editing = new L.Edit.Poly splitter
       @_activeLayer.editing._poly.options.editing = {color: '#fe57a1', dashArray: '10, 10'}

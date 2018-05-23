@@ -11867,8 +11867,7 @@ L.Cut.Polyline = (function(superClass) {
     this._availableLayers.on('layerremove', this._disableLayer, this);
     this._map.on(L.Cutting.Polyline.Event.SELECT, this._cutMode, this);
     this._map.on('zoomend moveend', this.refreshAvailableLayers, this);
-    this._map.on('mousemove', this._selectLayer, this);
-    this._map.on('mousemove', this._cutMode, this);
+    this._map.on('click', this._selectLayer, this);
     return Polyline.__super__.enable.apply(this, arguments);
   };
 
@@ -12037,10 +12036,7 @@ L.Cut.Polyline = (function(superClass) {
       };
     })(this));
     if (found) {
-      return;
-    }
-    if (this._activeLayer && !this._activeLayer.glue) {
-      return this._unselectLayer(this._activeLayer);
+
     }
   };
 
@@ -12118,10 +12114,7 @@ L.Cut.Polyline = (function(superClass) {
         this._activeLayer.options.cutting = pathOptions;
       }
       this._activeLayer.cutting.enable();
-    }
-    if (!this._startPoint) {
-      this._activeLayer.cutting._mouseMarker.on('move', this.glueMarker, this);
-      return this._activeLayer.cutting._mouseMarker.on('snap', this._glue_on_enabled, this);
+      return this._map.on(L.Draw.Event.DRAWVERTEX, this._finishDrawing, this);
     }
   };
 
@@ -12220,6 +12213,10 @@ L.Cut.Polyline = (function(superClass) {
     var lastMarker, latlng, latlngs, marker, markerCount, poly;
     markerCount = this._activeLayer.cutting._markers.length;
     marker = this._activeLayer.cutting._markers[markerCount - 1];
+    console.log(markerCount);
+    if (markerCount !== 3) {
+      return;
+    }
     if (L.Browser.touch) {
       lastMarker = this._activeLayer.cutting._markers.pop();
       poly = this._activeLayer.cutting._poly;
@@ -12234,12 +12231,21 @@ L.Cut.Polyline = (function(superClass) {
     return this._stopCutDrawing();
   };
 
-  Polyline.prototype._slice = function(poly, splitter) {
-    var polygons, splitterCoords;
-    splitterCoords = turfGetCoords(splitter);
-    splitter = turf.lineString(splitterCoords);
-    polygons = this._polygonSlice(poly, splitter);
-    return polygons;
+  Polyline.prototype._slice = function(polygon, polyline) {
+    var featureGroup, poly, splitter, turfPolygonsCollection;
+    poly = polygon.toTurfFeature();
+    splitter = polyline.toTurfFeature();
+    splitter = turfTruncate(splitter, {
+      precision: 6
+    });
+    turfPolygonsCollection = this._polygonSlice(poly, splitter);
+    featureGroup = new L.FeatureGroup();
+    turfMeta.featureEach(turfPolygonsCollection, function(turfPolygon) {
+      polygon = new L.polygon([]);
+      polygon.fromTurfFeature(turfPolygon);
+      return featureGroup.addLayer(polygon);
+    });
+    return featureGroup;
   };
 
   Polyline.prototype._innerLineStrings = function(poly) {
@@ -12265,7 +12271,7 @@ L.Cut.Polyline = (function(superClass) {
       return outerLineStrings.push(line);
     });
     outerLineStrings = turfTruncate(turf.featureCollection(outerLineStrings), {
-      precision: 3
+      precision: 6
     });
     polygons = turfPolygonize["default"](outerLineStrings);
     if (innerRings.features.length) {
@@ -12405,19 +12411,15 @@ L.Cut.Polyline = (function(superClass) {
   };
 
   Polyline.prototype._stopCutDrawing = function() {
-    var drawnPolyline, e, polygon1, polygon2, ref, splitter;
+    var drawnPolyline, e, layerGroup;
     drawnPolyline = this._activeLayer.cutting._poly;
     try {
-      ref = this._cut(this._activeLayer, drawnPolyline), polygon1 = ref[0], polygon2 = ref[1], splitter = ref[2];
+      layerGroup = this._slice(this._activeLayer, drawnPolyline);
+      console.log('layerGroup', layerGroup.toGeoJSON());
       this._activeLayer.cutting.disable();
       this._map.removeLayer(this._activeLayer);
-      this._activeLayer._polys = new L.LayerGroup();
+      this._activeLayer._polys = layerGroup;
       this._activeLayer._polys.addTo(this._map);
-      this._activeLayer._polys.addLayer(polygon1);
-      this._activeLayer._polys.addLayer(polygon2);
-      this._map.fire(L.Cutting.Polyline.Event.CREATED, {
-        layers: [polygon1, polygon2]
-      });
       this._activeLayer.editing = new L.Edit.Poly(splitter);
       this._activeLayer.editing._poly.options.editing = {
         color: '#fe57a1',
@@ -12427,11 +12429,11 @@ L.Cut.Polyline = (function(superClass) {
       this._activeLayer.editing.enable();
       this._activeLayer.editing._poly.on('editstart', (function(_this) {
         return function(e) {
-          var j, len, marker, ref1, results1;
-          ref1 = _this._activeLayer.editing._verticesHandlers[0]._markers;
+          var j, len, marker, ref, results1;
+          ref = _this._activeLayer.editing._verticesHandlers[0]._markers;
           results1 = [];
-          for (j = 0, len = ref1.length; j < len; j++) {
-            marker = ref1[j];
+          for (j = 0, len = ref.length; j < len; j++) {
+            marker = ref[j];
             marker.off('move', _this._moveMarker, _this);
             if (L.stamp(marker) === L.stamp(_this._activeLayer.editing._verticesHandlers[0]._markers[0]) || L.stamp(marker) === L.stamp(_this._activeLayer.editing._verticesHandlers[0]._markers.slice(0).pop())) {
               marker.on('move', _this.glueMarker, _this);
@@ -38766,14 +38768,18 @@ turfFlip = __webpack_require__(90);
 
 L.Polygon.include({
   toTurfFeature: function() {
-    var coords, multi, ring0;
+    var coords, i, len, multi, poly, ring;
     if (this.isEmpty() || !this._latlngs) {
       return;
     }
     multi = !L.LineUtil.isFlat(this._latlngs[0]);
-    ring0 = multi ? this._latlngs[0][0] : this._latlngs[0];
-    coords = L.GeoJSON.latLngsToCoords(ring0, 0, true, 17);
-    return turf.polygon([coords]);
+    poly = multi ? this._latlngs[0] : this._latlngs;
+    coords = [];
+    for (i = 0, len = poly.length; i < len; i++) {
+      ring = poly[i];
+      coords.push(L.GeoJSON.latLngsToCoords(ring, 0, true, 17));
+    }
+    return turf.polygon(coords);
   },
   outerRingAsTurfLineString: function() {
     var coords, multi, ring0;
