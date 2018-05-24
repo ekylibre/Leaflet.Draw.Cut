@@ -15,7 +15,7 @@ describe 'DrawCutSlice', ->
     splitter.fromTurfFeature FIXTURES['simple'].features[1]
 
     splitResult = klass._slice(poly, splitter)
-    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(OUT['simple']))
+    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(EXPECTATIONS['simple']))
 
   it 'should split a complex polygon', ->
     options = {}
@@ -29,7 +29,7 @@ describe 'DrawCutSlice', ->
     splitter.fromTurfFeature FIXTURES['complex'].features[1]
 
     splitResult = klass._slice(poly, splitter)
-    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(OUT['complex']))
+    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(EXPECTATIONS['complex']))
 
   it 'should split a polygon with hole', ->
     options = {}
@@ -43,7 +43,7 @@ describe 'DrawCutSlice', ->
     splitter.fromTurfFeature FIXTURES['holes1'].features[1]
 
     splitResult = klass._slice(poly, splitter)
-    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(OUT['holes1']))
+    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(EXPECTATIONS['holes1']))
 
   it 'should split a polygon with multiples holes', ->
     options = {}
@@ -57,7 +57,7 @@ describe 'DrawCutSlice', ->
     splitter.fromTurfFeature FIXTURES['holes2'].features[1]
 
     splitResult = klass._slice(poly, splitter)
-    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(OUT['holes2']))
+    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(EXPECTATIONS['holes2']))
 
   it 'should split a polygon with multiples holes', ->
     options = {}
@@ -71,4 +71,4 @@ describe 'DrawCutSlice', ->
     splitter.fromTurfFeature FIXTURES['holes3'].features[1]
 
     splitResult = klass._slice(poly, splitter)
-    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(OUT['holes3']))
+    expect(JSON.stringify(splitResult.toGeoJSON())).toBe(JSON.stringify(EXPECTATIONS['holes3']))

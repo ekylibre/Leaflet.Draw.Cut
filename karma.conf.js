@@ -21,7 +21,7 @@ module.exports = function(config) {
       'node_modules/leaflet-snap/leaflet.snap.js',
       'dist/*.js',
       'spec/fixtures.coffee',
-      'spec/out.coffee',
+      'spec/expectations.coffee',
       'spec/*Spec.coffee'
     ],
 
@@ -42,7 +42,7 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'spec/out.coffee': ['webpack'],
+      'spec/expectations.coffee': ['webpack'],
       'spec/fixtures.coffee': ['webpack'],
       'spec/*Spec.coffee': ['webpack']
     },

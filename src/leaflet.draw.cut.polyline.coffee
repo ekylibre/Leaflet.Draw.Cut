@@ -429,10 +429,8 @@ class L.Cut.Polyline extends L.Handler
     featureGroup = new L.FeatureGroup()
 
     turfMeta.featureEach turfPolygonsCollection, (turfPolygon, index) ->
-      #polygon = new L.polygon []
       colorScheme = if index == 0 then 'even' else 'odd'
       polygon = new L.polygon [], className: "leaflet-polygon-slice #{colorScheme}"
-      #polygon = new L.polygon [], fillColor: '#FFC107', fillOpacity: 0.9, opacity: 1, weight: 1, color: 'black'
       polygon.fromTurfFeature turfPolygon
       featureGroup.addLayer polygon
 
