@@ -12240,8 +12240,12 @@ L.Cut.Polyline = (function(superClass) {
     });
     turfPolygonsCollection = this._polygonSlice(poly, splitter);
     featureGroup = new L.FeatureGroup();
-    turfMeta.featureEach(turfPolygonsCollection, function(turfPolygon) {
-      polygon = new L.polygon([]);
+    turfMeta.featureEach(turfPolygonsCollection, function(turfPolygon, index) {
+      var colorScheme;
+      colorScheme = index === 0 ? 'even' : 'odd';
+      polygon = new L.polygon([], {
+        className: "leaflet-polygon-slice " + colorScheme
+      });
       polygon.fromTurfFeature(turfPolygon);
       return featureGroup.addLayer(polygon);
     });
