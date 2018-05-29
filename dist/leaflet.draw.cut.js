@@ -16534,16 +16534,49 @@ L.Cut.Polyline = (function(superClass) {
     if (!this._enabled) {
       return;
     }
-    this._availableLayers.off('layeradd', this._enableLayer, this);
-    this._availableLayers.off('layerremove', this._disableLayer, this);
-    Polyline.__super__.disable.apply(this, arguments);
     this._map.fire(L.Cutting.Polyline.Event.STOP, {
       handler: this.type
     });
+    if (this._activeLayer && this._activeLayer.cutting) {
+      this._activeLayer.cutting.disable();
+      if (this._activeLayer.cutting._mouseMarker) {
+        this._activeLayer.cutting._mouseMarker.off('mouseup', this._on_click, this);
+      }
+      if (this._activeLayer && this._activeLayer.cutting._poly) {
+        this._map.removeLayer(this._activeLayer.cutting._poly);
+        delete this._activeLayer.cutting._poly;
+      }
+      delete this._activeLayer.cutting;
+    }
+    if (this._activeLayer && this._activeLayer.editing) {
+      this._activeLayer.editing.disable();
+      if (this._activeLayer && this._activeLayer.editing._poly) {
+        this._map.removeLayer(this._activeLayer.editing._poly);
+      }
+    }
+    if (this._activeLayer && this._activeLayer._polys) {
+      this._activeLayer._polys.clearLayers();
+      delete this._activeLayer._polys;
+      delete this._activeLayer.editing;
+    }
+    if (!this._featureGroup._map) {
+      this._map.addLayer(this._featureGroup);
+    }
+    this._availableLayers.eachLayer((function(_this) {
+      return function(l) {
+        return _this._map.removeLayer(l);
+      };
+    })(this));
+    this._availableLayers.length = 0;
+    this._activeLayer = null;
+    this._availableLayers.off('layeradd', this._enableLayer, this);
+    this._availableLayers.off('layerremove', this._disableLayer, this);
+    this._map.off('zoomend moveend', this.refreshAvailableLayers, this);
     this._map.off(L.Cutting.Polyline.Event.SELECT, this._cutMode, this);
     this.fire('disabled', {
       handler: this.type
     });
+    Polyline.__super__.disable.apply(this, arguments);
   };
 
   Polyline.prototype.addHooks = function() {
@@ -16693,7 +16726,7 @@ L.Cut.Polyline = (function(superClass) {
 
   Polyline.prototype._on_click = function(e) {
     var isInPolygon, latlngs, marker, markerPoint, poly;
-    if (!this._activeLayer.cutting._markers) {
+    if (!this._activeLayer.cutting._markers.length) {
       return;
     }
     marker = this._activeLayer.cutting._markers[this._activeLayer.cutting._markers.length - 1];
@@ -16798,44 +16831,67 @@ L.Cut.Polyline = (function(superClass) {
   };
 
   Polyline.prototype._stopCutDrawing = function() {
-    var drawnPolyline, layerGroup, splitter;
-    drawnPolyline = this._activeLayer.cutting._poly;
-    splitter = L.polyline(drawnPolyline.getLatLngs(), this.options.cuttingPathOptions);
-    layerGroup = this._slice(this._activeLayer, drawnPolyline);
-    this._activeLayer.cutting._mouseMarker.off('mouseup', this._on_click, this);
-    this._map.removeLayer(this._activeLayer);
-    this._activeLayer._polys = layerGroup;
-    this._activeLayer._polys.addTo(this._map);
-    this._activeLayer.cutting.disable();
-    this._activeLayer.editing = new L.Edit.Poly(splitter);
-    this._activeLayer.editing._poly.addTo(this._map);
-    this._activeLayer.editing.enable();
-    L.DomUtil.addClass(this._activeLayer.editing._verticesHandlers[0]._markers[0]._icon, 'marker-origin');
-    L.DomUtil.addClass(this._activeLayer.editing._verticesHandlers[0]._markers[this._activeLayer.editing._verticesHandlers[0]._markers.length - 1]._icon, 'marker-origin');
-    return this._activeLayer.editing._poly.on('editstart', (function(_this) {
-      return function(e) {
-        var i, len, marker, ref, results1;
-        ref = _this._activeLayer.editing._verticesHandlers[0]._markers;
-        results1 = [];
-        for (i = 0, len = ref.length; i < len; i++) {
-          marker = ref[i];
-          results1.push(marker.on('move', _this._moveMarker, _this));
-        }
-        return results1;
-      };
-    })(this));
+    var drawnPolyline, e, layerGroup, splitter;
+    try {
+      drawnPolyline = this._activeLayer.cutting._poly;
+      splitter = L.polyline(drawnPolyline.getLatLngs(), this.options.cuttingPathOptions);
+      layerGroup = this._slice(this._activeLayer, drawnPolyline);
+      if (!(layerGroup && layerGroup.getLayers().length >= 2)) {
+        this._activeLayer.cutting.disable();
+        this._unselectLayer(this._activeLayer);
+        return;
+      }
+      this._activeLayer.cutting._mouseMarker.off('mouseup', this._on_click, this);
+      this._map.removeLayer(this._activeLayer);
+      this._activeLayer._polys = layerGroup;
+      this._activeLayer._polys.addTo(this._map);
+      this._activeLayer.cutting.disable();
+      this._activeLayer.editing = new L.Edit.Poly(splitter);
+      this._activeLayer.editing._poly.addTo(this._map);
+      this._activeLayer.editing.enable();
+      L.DomUtil.addClass(this._activeLayer.editing._verticesHandlers[0]._markers[0]._icon, 'marker-origin');
+      L.DomUtil.addClass(this._activeLayer.editing._verticesHandlers[0]._markers[this._activeLayer.editing._verticesHandlers[0]._markers.length - 1]._icon, 'marker-origin');
+      return this._activeLayer.editing._poly.on('editstart', (function(_this) {
+        return function(e) {
+          var i, len, marker, ref, results1;
+          ref = _this._activeLayer.editing._verticesHandlers[0]._markers;
+          results1 = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            marker = ref[i];
+            results1.push(marker.on('move', _this._moveMarker, _this));
+          }
+          return results1;
+        };
+      })(this));
+    } catch (error) {
+      e = error;
+      this._activeLayer.cutting.disable();
+      return this._unselectLayer(this._activeLayer);
+    }
   };
 
   Polyline.prototype._moveMarker = function(e) {
     var drawnPolyline, layerGroup, marker;
     marker = e.marker || e.target || e;
-    drawnPolyline = this._activeLayer.editing._poly;
-    layerGroup = this._slice(this._activeLayer, drawnPolyline);
-    console.log('layerGroup', JSON.stringify(layerGroup.toGeoJSON()));
-    this._activeLayer._polys.clearLayers();
-    this._map.removeLayer(this._activeLayer);
-    this._activeLayer._polys = layerGroup;
-    return this._activeLayer._polys.addTo(this._map);
+    try {
+      drawnPolyline = this._activeLayer.editing._poly;
+      layerGroup = this._slice(this._activeLayer, drawnPolyline);
+      if (!(layerGroup && layerGroup.getLayers().length >= 2)) {
+        this.disable();
+        return;
+      }
+      this._activeLayer._polys.clearLayers();
+      this._map.removeLayer(this._activeLayer);
+      this._activeLayer._polys = layerGroup;
+      this._activeLayer._polys.addTo(this._map);
+      marker._oldLatLng = marker._latlng;
+      return this._map.fire(L.Cutting.Polyline.Event.UPDATED, {
+        layers: layerGroup.getLayers()
+      });
+    } catch (error) {
+      e = error;
+      return this.disable();
+    }
   };
 
   Polyline.prototype._hasAvailableLayers = function() {

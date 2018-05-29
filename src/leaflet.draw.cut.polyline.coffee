@@ -71,45 +71,41 @@ class L.Cut.Polyline extends L.Handler
   disable: ->
     if !@_enabled
       return
-    @_availableLayers.off 'layeradd', @_enableLayer, @
-    @_availableLayers.off 'layerremove', @_disableLayer, @
-
-    super
-
     @_map.fire L.Cutting.Polyline.Event.STOP, handler: @type
 
-    @_map.off L.Cutting.Polyline.Event.SELECT, @_cutMode, @
+    if @_activeLayer and @_activeLayer.cutting
+      @_activeLayer.cutting.disable()
 
-    #if @_activeLayer and @_activeLayer.cutting
-      #@_activeLayer.cutting.disable()
+      if @_activeLayer.cutting._mouseMarker
+        @_activeLayer.cutting._mouseMarker.off 'mouseup', @_on_click, @
 
-      #if @_activeLayer and @_activeLayer.cutting._poly
-        #@_map.removeLayer @_activeLayer.cutting._poly
-        #delete @_activeLayer.cutting._poly
+      if @_activeLayer and @_activeLayer.cutting._poly
+        @_map.removeLayer @_activeLayer.cutting._poly
+        delete @_activeLayer.cutting._poly
 
-      #delete @_activeLayer.cutting
+      delete @_activeLayer.cutting
 
-    #if @_activeLayer and @_activeLayer.editing
-      #@_activeLayer.editing.disable()
+    if @_activeLayer and @_activeLayer.editing
+      @_activeLayer.editing.disable()
 
-      #if @_activeLayer and @_activeLayer.editing._poly
-        #@_map.removeLayer @_activeLayer.editing._poly
+      if @_activeLayer and @_activeLayer.editing._poly
+        @_map.removeLayer @_activeLayer.editing._poly
 
-    #if @_activeLayer and @_activeLayer._polys
-      #@_activeLayer._polys.clearLayers()
+    if @_activeLayer and @_activeLayer._polys
+      @_activeLayer._polys.clearLayers()
 
-      #delete @_activeLayer._polys
-      #delete @_activeLayer.editing
+      delete @_activeLayer._polys
+      delete @_activeLayer.editing
       #delete @_activeLayer.glue
-    #unless @_featureGroup._map
-      #@_map.addLayer @_featureGroup
+    unless @_featureGroup._map
+      @_map.addLayer @_featureGroup
 
-    #@_availableLayers.eachLayer (l) =>
-      #@_map.removeLayer l
-    #@_availableLayers.length = 0
+    @_availableLayers.eachLayer (l) =>
+      @_map.removeLayer l
+    @_availableLayers.length = 0
 
     #@_startPoint = null
-    #@_activeLayer = null
+    @_activeLayer = null
 
     #@_map.off L.Draw.Event.DRAWVERTEX, @_finishDrawing, @
     #@_map.off 'click', @_finishDrawing, @
@@ -117,9 +113,15 @@ class L.Cut.Polyline extends L.Handler
     #@_map.off 'mousemove', @_selectLayer, @
     #@_map.off 'mousemove', @_cutMode, @
 
-    #@_map.off 'zoomend moveend', @refreshAvailableLayers, @
+
+    @_availableLayers.off 'layeradd', @_enableLayer, @
+    @_availableLayers.off 'layerremove', @_disableLayer, @
+    @_map.off 'zoomend moveend', @refreshAvailableLayers, @
+
+    @_map.off L.Cutting.Polyline.Event.SELECT, @_cutMode, @
 
     @fire 'disabled', handler: @type
+    super
     return
 
   addHooks: ->
@@ -308,7 +310,7 @@ class L.Cut.Polyline extends L.Handler
       @_activeLayer.cutting._mouseMarker.on 'mouseup', @_on_click, @
 
   _on_click: (e) =>
-    return unless @_activeLayer.cutting._markers
+    return unless @_activeLayer.cutting._markers.length
 
 
     marker = @_activeLayer.cutting._markers[@_activeLayer.cutting._markers.length - 1]
@@ -408,70 +410,87 @@ class L.Cut.Polyline extends L.Handler
 
   _stopCutDrawing: () ->
 
-    drawnPolyline = @_activeLayer.cutting._poly
+    try
+      drawnPolyline = @_activeLayer.cutting._poly
 
-    #splitter = L.polyline(drawnPolyline.getLatLngs())
-    splitter = L.polyline drawnPolyline.getLatLngs(), @options.cuttingPathOptions
+      #splitter = L.polyline(drawnPolyline.getLatLngs())
+      splitter = L.polyline drawnPolyline.getLatLngs(), @options.cuttingPathOptions
 
-    layerGroup = @_slice @_activeLayer, drawnPolyline
+      layerGroup = @_slice @_activeLayer, drawnPolyline
 
-    @_activeLayer.cutting._mouseMarker.off 'mouseup', @_on_click, @
+      unless layerGroup && layerGroup.getLayers().length >= 2
+        @_activeLayer.cutting.disable()
+        @_unselectLayer @_activeLayer
+        return
 
-    @_map.removeLayer @_activeLayer
+      @_activeLayer.cutting._mouseMarker.off 'mouseup', @_on_click, @
 
-    @_activeLayer._polys = layerGroup
-    @_activeLayer._polys.addTo @_map
+      @_map.removeLayer @_activeLayer
 
-    @_activeLayer.cutting.disable()
-    #
-    ##@_map.fire L.Cutting.Polyline.Event.CREATED, layers: [polygon1, polygon2]
+      @_activeLayer._polys = layerGroup
+      @_activeLayer._polys.addTo @_map
 
-    @_activeLayer.editing = new L.Edit.Poly splitter
-    #@_activeLayer.editing._poly.options.editing = {color: '#fe57a1', dashArray: '10, 10'}
+      @_activeLayer.cutting.disable()
+      #
+      ##@_map.fire L.Cutting.Polyline.Event.CREATED, layers: [polygon1, polygon2]
 
-    @_activeLayer.editing._poly.addTo(@_map)
-    @_activeLayer.editing.enable()
-    #@_activeLayer.editing._poly.bringToFront()
+      @_activeLayer.editing = new L.Edit.Poly splitter
+      #@_activeLayer.editing._poly.options.editing = {color: '#fe57a1', dashArray: '10, 10'}
 
-    L.DomUtil.addClass @_activeLayer.editing._verticesHandlers[0]._markers[0]._icon, 'marker-origin'
-    L.DomUtil.addClass @_activeLayer.editing._verticesHandlers[0]._markers[@_activeLayer.editing._verticesHandlers[0]._markers.length - 1]._icon, 'marker-origin'
+      @_activeLayer.editing._poly.addTo(@_map)
+      @_activeLayer.editing.enable()
+      #@_activeLayer.editing._poly.bringToFront()
 
-    @_activeLayer.editing._poly.on 'editstart', (e) =>
-      for marker in @_activeLayer.editing._verticesHandlers[0]._markers
-        marker.on 'move', @_moveMarker, @
+      L.DomUtil.addClass @_activeLayer.editing._verticesHandlers[0]._markers[0]._icon, 'marker-origin'
+      L.DomUtil.addClass @_activeLayer.editing._verticesHandlers[0]._markers[@_activeLayer.editing._verticesHandlers[0]._markers.length - 1]._icon, 'marker-origin'
 
-    #catch e
-      #if e.message is "kinks"
-        #@_activeLayer.cutting.disable()
-        #@_unselectLayer @_activeLayer
+      @_activeLayer.editing._poly.on 'editstart', (e) =>
+        for marker in @_activeLayer.editing._verticesHandlers[0]._markers
+          marker.on 'move', @_moveMarker, @
+
+    catch e
+      @_activeLayer.cutting.disable()
+      @_unselectLayer @_activeLayer
+
+  #_rewind: (marker) ->
+    #return unless marker && marker._oldLatLng
+    #marker._latlng = marker._oldLatLng
+    #marker.update()
 
   _moveMarker: (e) ->
     marker = e.marker || e.target || e
 
-    drawnPolyline = @_activeLayer.editing._poly
+    try
+      drawnPolyline = @_activeLayer.editing._poly
 
-    layerGroup = @_slice @_activeLayer, drawnPolyline
+      layerGroup = @_slice @_activeLayer, drawnPolyline
 
-    console.log 'layerGroup', JSON.stringify(layerGroup.toGeoJSON())
+      unless layerGroup && layerGroup.getLayers().length >= 2
+        #@_rewind(marker)
+        @disable()
+        #@_activeLayer.editing.disable()
+        #@_map.removeLayer @_activeLayer.editing._poly
+        #@_unselectLayer @_activeLayer
+        return
 
-    @_activeLayer._polys.clearLayers()
+      #console.log 'layerGroup', JSON.stringify(layerGroup.toGeoJSON())
 
-    @_map.removeLayer @_activeLayer
+      @_activeLayer._polys.clearLayers()
 
-    @_activeLayer._polys = layerGroup
-    @_activeLayer._polys.addTo @_map
+      @_map.removeLayer @_activeLayer
 
-    #TODO: inside 
-    #latlng = marker._latlng
+      @_activeLayer._polys = layerGroup
+      @_activeLayer._polys.addTo @_map
 
-    #markerPoint = latlng.toTurfFeature()
-    #polygon = @_activeLayer.toTurfFeature()
+      marker._oldLatLng = marker._latlng
+      
+      @_map.fire L.Cutting.Polyline.Event.UPDATED, layers: layerGroup.getLayers()
 
-    #if !turfinside.default(markerPoint, polygon, ignoreBoundary: true) && marker._oldLatLng
-
-      #marker._latlng = marker._oldLatLng
-      #marker.update()
-    #@_map.fire L.Cutting.Polyline.Event.UPDATED, layers: [polygon1, polygon2]
+    catch e
+      #@_rewind(marker)
+      @disable()
+      #@_activeLayer.editing.disable()
+      #@_unselectLayer @_activeLayer
 
 
   _hasAvailableLayers: ->
