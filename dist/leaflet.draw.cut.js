@@ -16679,21 +16679,13 @@ L.Cut.Polyline = (function(superClass) {
   };
 
   Polyline.prototype._cutMode = function() {
-    var pathOptions;
     if (!this._activeLayer) {
       return;
     }
     if (!this._activeLayer.cutting) {
-      this._activeLayer.cutting = new L.Draw.Polyline(this._map);
-      if (this.options.cuttingPathOptions) {
-        pathOptions = L.Util.extend({}, this.options.cuttingPathOptions);
-        if (pathOptions.maintainColor) {
-          pathOptions.color = this._activeLayer.options.color;
-          pathOptions.fillColor = this._activeLayer.options.fillColor;
-        }
-        pathOptions.fillOpacity = 0.5;
-        this._activeLayer.options.cutting = pathOptions;
-      }
+      this._activeLayer.cutting = new L.Draw.Polyline(this._map, {
+        shapeOptions: this.options.cuttingPathOptions
+      });
       this._activeLayer.cutting.enable();
       return this._activeLayer.cutting._mouseMarker.on('mouseup', this._on_click, this);
     }
@@ -16721,10 +16713,9 @@ L.Cut.Polyline = (function(superClass) {
     }
     if (this._activeLayer.cutting._markers.length > 1) {
       if (!isInPolygon) {
-        this._stopCutDrawing();
+        return this._stopCutDrawing();
       }
     }
-    return this._activeLayer.setStyle(this._activeLayer.options.cutting);
   };
 
   Polyline.prototype._slice = function(polygon, polyline) {
@@ -16809,7 +16800,7 @@ L.Cut.Polyline = (function(superClass) {
   Polyline.prototype._stopCutDrawing = function() {
     var drawnPolyline, layerGroup, splitter;
     drawnPolyline = this._activeLayer.cutting._poly;
-    splitter = L.polyline(drawnPolyline.getLatLngs());
+    splitter = L.polyline(drawnPolyline.getLatLngs(), this.options.cuttingPathOptions);
     layerGroup = this._slice(this._activeLayer, drawnPolyline);
     this._activeLayer.cutting._mouseMarker.off('mouseup', this._on_click, this);
     this._map.removeLayer(this._activeLayer);
@@ -16817,10 +16808,6 @@ L.Cut.Polyline = (function(superClass) {
     this._activeLayer._polys.addTo(this._map);
     this._activeLayer.cutting.disable();
     this._activeLayer.editing = new L.Edit.Poly(splitter);
-    this._activeLayer.editing._poly.options.editing = {
-      color: '#fe57a1',
-      dashArray: '10, 10'
-    };
     this._activeLayer.editing._poly.addTo(this._map);
     this._activeLayer.editing.enable();
     L.DomUtil.addClass(this._activeLayer.editing._verticesHandlers[0]._markers[0]._icon, 'marker-origin');

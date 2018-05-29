@@ -287,21 +287,21 @@ class L.Cut.Polyline extends L.Handler
     return unless @_activeLayer
 
     if !@_activeLayer.cutting
-      @_activeLayer.cutting = new L.Draw.Polyline(@_map)
+      @_activeLayer.cutting = new L.Draw.Polyline(@_map, shapeOptions: @options.cuttingPathOptions)
 
       #opts = _.merge(@options.snap, guideLayers: [@_activeLayer])
       #@_activeLayer.cutting.setOptions(opts)
 
-      if @options.cuttingPathOptions
-        pathOptions = L.Util.extend {}, @options.cuttingPathOptions
+      #if @options.cuttingPathOptions
+        #pathOptions = L.Util.extend {}, @options.cuttingPathOptions
 
-        # Use the existing color of the layer
-        if pathOptions.maintainColor
-          pathOptions.color = @_activeLayer.options.color
-          pathOptions.fillColor = @_activeLayer.options.fillColor
+        ## Use the existing color of the layer
+        #if pathOptions.maintainColor
+          #pathOptions.color = @_activeLayer.options.color
+          #pathOptions.fillColor = @_activeLayer.options.fillColor
 
-        pathOptions.fillOpacity = 0.5
-        @_activeLayer.options.cutting = pathOptions
+        #pathOptions.fillOpacity = 0.5
+        #@_activeLayer.options.cutting = pathOptions
 
       @_activeLayer.cutting.enable()
 
@@ -332,7 +332,6 @@ class L.Cut.Polyline extends L.Handler
       unless isInPolygon
         @_stopCutDrawing()
 
-    @_activeLayer.setStyle(@_activeLayer.options.cutting)
 
   _slice: (polygon, polyline) ->
 
@@ -411,7 +410,8 @@ class L.Cut.Polyline extends L.Handler
 
     drawnPolyline = @_activeLayer.cutting._poly
 
-    splitter = L.polyline(drawnPolyline.getLatLngs())
+    #splitter = L.polyline(drawnPolyline.getLatLngs())
+    splitter = L.polyline drawnPolyline.getLatLngs(), @options.cuttingPathOptions
 
     layerGroup = @_slice @_activeLayer, drawnPolyline
 
@@ -427,10 +427,11 @@ class L.Cut.Polyline extends L.Handler
     ##@_map.fire L.Cutting.Polyline.Event.CREATED, layers: [polygon1, polygon2]
 
     @_activeLayer.editing = new L.Edit.Poly splitter
-    @_activeLayer.editing._poly.options.editing = {color: '#fe57a1', dashArray: '10, 10'}
+    #@_activeLayer.editing._poly.options.editing = {color: '#fe57a1', dashArray: '10, 10'}
 
     @_activeLayer.editing._poly.addTo(@_map)
     @_activeLayer.editing.enable()
+    #@_activeLayer.editing._poly.bringToFront()
 
     L.DomUtil.addClass @_activeLayer.editing._verticesHandlers[0]._markers[0]._icon, 'marker-origin'
     L.DomUtil.addClass @_activeLayer.editing._verticesHandlers[0]._markers[@_activeLayer.editing._verticesHandlers[0]._markers.length - 1]._icon, 'marker-origin'
