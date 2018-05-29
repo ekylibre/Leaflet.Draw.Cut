@@ -16792,7 +16792,7 @@ L.Cut.Polyline = (function(superClass) {
     }
     index = 0;
     turfMeta.featureEach(turfPolygonsCollection, function(turfPolygon) {
-      var diff;
+      var base, diff;
       if (turfPolygonsCollection.features.length > 2) {
         diff = turfDifference(turfPolygon, buffered);
         if (diff != null) {
@@ -16805,6 +16805,10 @@ L.Cut.Polyline = (function(superClass) {
       polygon._polygonSliceIcon = new L.PolygonSliceIcon({
         html: "" + (index + 1)
       });
+      polygon.feature || (polygon.feature = {});
+      (base = polygon.feature).properties || (base.properties = {});
+      polygon.feature.properties.num = index + 1;
+      polygon.feature.properties.color = "c-" + index;
       polygon.fromTurfFeature(turfPolygon);
       featureGroup.addLayer(polygon);
       return index++;
@@ -16886,7 +16890,8 @@ L.Cut.Polyline = (function(superClass) {
       });
       this._activeLayer.cutting.disable();
       this._map.fire(L.Cutting.Polyline.Event.CREATED, {
-        layers: layerGroup.getLayers()
+        layers: layerGroup.getLayers(),
+        parent: this._activeLayer
       });
       this._activeLayer.editing = new L.Edit.Poly(splitter);
       this._activeLayer.editing._poly.addTo(this._map);
@@ -16940,7 +16945,8 @@ L.Cut.Polyline = (function(superClass) {
       });
       marker._oldLatLng = marker._latlng;
       return this._map.fire(L.Cutting.Polyline.Event.UPDATED, {
-        layers: layerGroup.getLayers()
+        layers: layerGroup.getLayers(),
+        parent: this._activeLayer
       });
     } catch (error) {
       e = error;
