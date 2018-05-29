@@ -16626,6 +16626,30 @@ L.Cut.Polyline = (function(superClass) {
     return this._availableLayers.eachLayer(this._disableLayer, this);
   };
 
+  Polyline.prototype.save = function() {
+    var newLayers;
+    newLayers = [];
+    this._map.addLayer(this._featureGroup);
+    if (this._activeLayer && this._activeLayer._polys) {
+      this._activeLayer._polys.eachLayer((function(_this) {
+        return function(l) {
+          return _this._featureGroup.addData(l.toGeoJSON());
+        };
+      })(this));
+      this._activeLayer._polys.clearLayers();
+      delete this._activeLayer._polys;
+      newLayers = this._featureGroup.getLayers().slice(-2);
+      this._map.fire(L.Cutting.Polyline.Event.SAVED, {
+        oldLayer: {
+          uuid: this._activeLayer.feature.properties.uuid,
+          type: this._activeLayer.feature.properties.type
+        },
+        layers: newLayers
+      });
+      this._map.removeLayer(this._activeLayer);
+    }
+  };
+
   Polyline.prototype._enableLayer = function(e) {
     var layer, pathOptions;
     layer = e.layer || e.target || e;
@@ -16846,6 +16870,9 @@ L.Cut.Polyline = (function(superClass) {
       this._activeLayer._polys = layerGroup;
       this._activeLayer._polys.addTo(this._map);
       this._activeLayer.cutting.disable();
+      this._map.fire(L.Cutting.Polyline.Event.CREATED, {
+        layers: layerGroup.getLayers()
+      });
       this._activeLayer.editing = new L.Edit.Poly(splitter);
       this._activeLayer.editing._poly.addTo(this._map);
       this._activeLayer.editing.enable();

@@ -163,24 +163,24 @@ class L.Cut.Polyline extends L.Handler
   removeHooks: ->
     @_availableLayers.eachLayer @_disableLayer, @
 
-  #save: ->
-    #newLayers = []
+  save: ->
+    newLayers = []
 
-    #@_map.addLayer @_featureGroup
+    @_map.addLayer @_featureGroup
 
-    #if @_activeLayer._polys
-      #@_activeLayer._polys.eachLayer (l) =>
-        #@_featureGroup.addData l.toGeoJSON()
+    if @_activeLayer && @_activeLayer._polys
+      @_activeLayer._polys.eachLayer (l) =>
+        @_featureGroup.addData l.toGeoJSON()
 
-      #@_activeLayer._polys.clearLayers()
-      #delete @_activeLayer._polys
+      @_activeLayer._polys.clearLayers()
+      delete @_activeLayer._polys
 
-      #newLayers = @_featureGroup.getLayers()[-2..-1]
+      newLayers = @_featureGroup.getLayers()[-2..-1]
 
-      #@_map.fire L.Cutting.Polyline.Event.SAVED, oldLayer: {uuid: @_activeLayer.feature.properties.uuid, type: @_activeLayer.feature.properties.type}, layers: newLayers
+      @_map.fire L.Cutting.Polyline.Event.SAVED, oldLayer: {uuid: @_activeLayer.feature.properties.uuid, type: @_activeLayer.feature.properties.type}, layers: newLayers
 
-      #@_map.removeLayer @_activeLayer
-    #return
+      @_map.removeLayer @_activeLayer
+    return
 
   _enableLayer: (e) ->
     layer = e.layer or e.target or e
@@ -433,6 +433,7 @@ class L.Cut.Polyline extends L.Handler
       @_activeLayer.cutting.disable()
       #
       ##@_map.fire L.Cutting.Polyline.Event.CREATED, layers: [polygon1, polygon2]
+      @_map.fire L.Cutting.Polyline.Event.CREATED, layers: layerGroup.getLayers()
 
       @_activeLayer.editing = new L.Edit.Poly splitter
       #@_activeLayer.editing._poly.options.editing = {color: '#fe57a1', dashArray: '10, 10'}
