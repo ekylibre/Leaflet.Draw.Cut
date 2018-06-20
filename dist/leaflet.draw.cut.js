@@ -23656,10 +23656,11 @@ L.Cut.Polyline = (function(superClass) {
   };
 
   Polyline.prototype._stopCutDrawing = function() {
-    var drawnPolyline, layerGroup, splitter;
+    var drawnPolyline, e, layerGroup, splitter;
     try {
       drawnPolyline = this._activeLayer.cutting._poly;
       splitter = L.polyline(drawnPolyline.getLatLngs(), this.options.cuttingPathOptions);
+      debugger;
       layerGroup = this._slice(this._activeLayer, drawnPolyline);
       if (!(layerGroup && layerGroup.getLayers().length >= 2)) {
         return;
@@ -23703,7 +23704,10 @@ L.Cut.Polyline = (function(superClass) {
           return results1;
         };
       })(this));
-    } catch (error) {}
+    } catch (error) {
+      e = error;
+      debugger;
+    }
   };
 
   Polyline.prototype._moveMarker = function(e) {
