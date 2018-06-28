@@ -27800,7 +27800,7 @@ L.Cut.Polyline = (function(superClass) {
   };
 
   Polyline.prototype._stopCutDrawing = function() {
-    var drawnPolyline, e, layerGroup, splitter;
+    var drawnPolyline, layerGroup, splitter;
     try {
       drawnPolyline = this._activeLayer.cutting._poly;
       splitter = L.polyline(drawnPolyline.getLatLngs(), this.options.cuttingPathOptions);
@@ -27842,16 +27842,13 @@ L.Cut.Polyline = (function(superClass) {
           results1 = [];
           for (i = 0, len = ref.length; i < len; i++) {
             marker = ref[i];
-            results1.push(marker.on('move', _this._moveMarker, _this));
+            marker.on('move', _this._moveMarker, _this);
+            results1.push(marker.on('click', _this._moveMarker, _this));
           }
           return results1;
         };
       })(this));
-    } catch (error) {
-      e = error;
-      console.log(e);
-      debugger;
-    }
+    } catch (error) {}
   };
 
   Polyline.prototype._moveMarker = function(e) {
