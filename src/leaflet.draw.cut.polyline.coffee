@@ -366,9 +366,6 @@ class L.Cut.Polyline extends L.Handler
     poly = polygon.toTurfFeature()
     splitter = polyline.toTurfFeature()
 
-    # poly = turfTruncate(poly, precision: 6)
-    # splitter = turfTruncate(splitter, precision: 6)
-
     turfPolygonsCollection = @_polygonSlice(poly, splitter)
 
     featureGroup = new L.FeatureGroup()
@@ -425,32 +422,6 @@ class L.Cut.Polyline extends L.Handler
     turfMeta.featureEach turfLineSplit(splitter, poly), (line) ->
       outerLineStrings.push line
 
-    # accurateIntersectPoints = []
-
-    # for feature in outerLineStrings
-    #   points = feature.geometry.coordinates
-    #   for point in points
-    #     for intersectPoint in intersectPoints.features
-    #       roundedIntersectPoint = [Math.floor(intersectPoint.geometry.coordinates[0] * 1000000) / 1000000, Math.floor(intersectPoint.geometry.coordinates[1] * 1000000) / 1000000]
-    #       roundedPoint = [Math.floor(point[0] * 1000000) / 1000000, Math.floor(point[1] * 1000000) / 1000000]
-    #       if (JSON.stringify(roundedIntersectPoint) == JSON.stringify(roundedPoint)) && (JSON.stringify(point) != JSON.stringify(intersectPoint.geometry.coordinates))
-    #         accurateIntersectPoints.push point
-
-    # stingifiedAccurateIntersectPoints = accurateIntersectPoints.map (point) ->
-    #   JSON.stringify(point)
-
-    # accurateIntersectPoints = _.uniq(stingifiedAccurateIntersectPoints).map (point) ->
-    #   JSON.parse(point)
-
-    # for feature in outerLineStrings
-    #   points = feature.geometry.coordinates
-    #   for point, index in points
-    #     for accurateIntersectPoint in accurateIntersectPoints
-    #       roundedIntersectPoint = [Math.floor(accurateIntersectPoint[0] * 1000000) / 1000000, Math.floor(accurateIntersectPoint[1] * 1000000) / 1000000]
-    #       roundedPoint = [Math.floor(point[0] * 1000000) / 1000000, Math.floor(point[1] * 1000000) / 1000000]
-    #       feature.geometry.coordinates[index] = accurateIntersectPoint if JSON.stringify(roundedIntersectPoint) == JSON.stringify(roundedPoint)
-
-
     for feature in outerLineStrings
       points = feature.geometry.coordinates
       for point, index in points
@@ -462,7 +433,6 @@ class L.Cut.Polyline extends L.Handler
             inPolygonPoint = turfBooleanPointOnLine(point, outerRing)
             feature.geometry.coordinates[index] = intersectPoint.geometry.coordinates
 
-    # outerLineStrings = turfTruncate(turf.featureCollection(outerLineStrings), precision: 6)
     outerLineStrings = turf.featureCollection(outerLineStrings)
     polygons = turfPolygonize.default(outerLineStrings)
 
