@@ -86,7 +86,9 @@ class L.Calculation
               ring.unshift ring[..].pop()
             pointRemoved = true
 
-        for coord, index in ring
+        pointRemoved = false
+        index = 0
+        for coord in ring
           prevCoord = @findPrevPoint ring, index
           nextCoord = @findNextPoint ring, index
           roundedBearing1 = Math.floor(turfBearing(coord, prevCoord) * 100) / 100
@@ -98,6 +100,7 @@ class L.Calculation
               ring.pop()
               ring.unshift ring[..].pop()
             pointRemoved = true
+          index += 1 unless pointRemoved
 
       ring
     turf.polygon(poly)
@@ -106,4 +109,3 @@ class L.Calculation
     diffCoordinates = polygonClipping.difference(feature1.geometry.coordinates, feature2.geometry.coordinates)
 
     @cleanPolygon turf.multiPolygon(diffCoordinates)
-    
