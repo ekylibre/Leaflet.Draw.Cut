@@ -73,8 +73,11 @@ class L.Calculation
         newCoordinates = []
         pointRemoved = false
 
-        for coord, index in ring
-          continue unless coord && (nextCoord = ring[index + 1])
+        index = 0
+        while index < ring.length
+          coord = ring[index]
+          nextCoord = ring[index + 1]
+          break unless nextCoord
 
           roundedCoord = coord.map(roundCoord)
           roundedNextCoord = nextCoord.map(roundCoord)
@@ -85,10 +88,14 @@ class L.Calculation
               ring.pop()
               ring.unshift ring[..].pop()
             pointRemoved = true
+          else
+            index += 1
 
-        pointRemoved = false
         index = 0
-        for coord in ring
+
+        #for coord in ring
+        while index < ring.length
+          coord = ring[index]
           prevCoord = @findPrevPoint ring, index
           nextCoord = @findNextPoint ring, index
           roundedBearing1 = Math.floor(turfBearing(coord, prevCoord) * 100) / 100
@@ -100,7 +107,8 @@ class L.Calculation
               ring.pop()
               ring.unshift ring[..].pop()
             pointRemoved = true
-          index += 1 unless pointRemoved
+          else
+            index += 1
 
       ring
     turf.polygon(poly)
