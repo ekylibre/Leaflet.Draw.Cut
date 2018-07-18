@@ -103,11 +103,7 @@ class L.Calculation
     turf.polygon(poly)
 
   @difference: (feature1, feature2) ->
-    #p1 = turfTruncate(feature1, precision: 7).geometry
-    #p2 = turfTruncate(feature2, precision: 7).geometry
-    p1 = feature1.geometry
-    p2 = feature2.geometry
-    diffCoordinates = polygonClipping.difference(p1.coordinates, p2.coordinates)
+    diffCoordinates = polygonClipping.difference(feature1.geometry.coordinates, feature2.geometry.coordinates)
 
     @cleanPolygon turf.multiPolygon(diffCoordinates)
     
